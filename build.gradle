@@ -75,13 +75,13 @@ dependencies {
     implementation 'org.slf4j:slf4j-log4j12:1.7.32'
     implementation 'org.slf4j:slf4j-api:1.7.32'
 
-    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: kotlin_version
-    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: kotlin_version
+    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8'
+    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect'
     implementation group: 'io.github.microutils', name: 'kotlin-logging', version: '1.7.9'
     implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.11.2'
     implementation group: 'com.athaydes.rawhttp', name:'rawhttp-core', version: '2.4.1'
 
-    testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
+    testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5'
 }
 
 application {

@@ -5,9 +5,8 @@ on:
     branches-ignore:
     - master
     - version-*
-#     paths:
-#    - gradle.properties
-#    - package_info.json
+    paths-ignore:
+    - README
 
 jobs:
   build:
@@ -46,3 +45,5 @@ jobs:
         push: true
         tags: ghcr.io/${{ github.repository }}:${{ steps.release_ver.outputs.value }}
         labels: com.exactpro.th2.${{ steps.meta.outputs.REPOSITORY_NAME }}=${{ steps.ver.outputs.value }}
+        build-args: |
+          release_version=${{ steps.release_ver.outputs.value }}

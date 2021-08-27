@@ -22,6 +22,7 @@ import com.exactpro.th2.conn.grpc.Response.Status.FAILURE
 import com.exactpro.th2.conn.grpc.Response.Status.SUCCESS
 import com.exactpro.th2.conn.grpc.StartRequest
 import com.exactpro.th2.conn.grpc.StopRequest
+import io.grpc.Status
 import io.grpc.stub.StreamObserver
 
 class ControlService(private val controller: ClientController) : ConnImplBase() {
@@ -52,8 +53,10 @@ class ControlService(private val controller: ClientController) : ConnImplBase() 
 
     private fun failure(message: String) = Response.newBuilder().setStatus(FAILURE).setMessage(message).build()
 
-    private operator fun StreamObserver<Response>.invoke(block: () -> Response) = runCatching {
+    private inline operator fun StreamObserver<Response>.invoke(block: () -> Response) = runCatching {
         onNext(synchronized(this@ControlService, block))
         onCompleted()
-    }.getOrElse(this::onError)
+    }.getOrElse {
+        onError(Status.INTERNAL.withDescription(it.message).withCause(it).asException())
+    }
 }
