@@ -48,18 +48,31 @@ class Handler(private val pingInterval: Long) : IStateManager, IHandler {
         this.wsClient = wsClient
     }
 
-    private fun restart(): Unit = startLock.withLock {
-        onStop()
-        onStart()
+     private fun restart() {
+        logger.warn { "Restarting client" }
+
+        if (!isRunning) {
+            logger.warn { "Skipping restart because client is not running" }
+            return
+        }
+
+        startLock.withLock {
+            onStop()
+            onStart()
+        }
     }
 
-    override fun onStart() = startLock.withLock {
-        try {
-            wsClient.start()
-            isRunning = true
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to execute onStart sequence" }
-            restart()
+    override fun onStart() {
+        logger.info { "Executing onStart sequence" }
+
+        startLock.withLock {
+            try {
+                isRunning = true
+                wsClient.start()
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to execute onStart sequence" }
+                restart()
+            }
         }
     }
 
@@ -96,21 +109,20 @@ class Handler(private val pingInterval: Long) : IStateManager, IHandler {
 
     override fun onPing(client: IClient, data: ByteArray) = startLock.withLock { createTimer(client) }
 
-    override fun onError(error: Throwable) {
-        if (isRunning) restart()
-    }
+    override fun onError(error: Throwable) = restart()
 
-    override fun onClose(statusCode: Int, reason: String) {
-        if (isRunning) restart()
-    }
+    override fun onClose(statusCode: Int, reason: String) = restart()
 
-    override fun onStop() = startLock.withLock {
-        try {
-            isRunning = false
-            cancelTimer()
-            wsClient.stop()
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to execute onStop sequence" }
+    override fun onStop() {
+        logger.info { "Executing onStop sequence" }
+
+        startLock.withLock {
+            try {
+                isRunning = false
+                wsClient.stop()
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to execute onStop sequence" }
+            }
         }
     }
 

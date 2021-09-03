@@ -1,4 +1,4 @@
-# HTTP-WebSocket Client Template v0.0.1
+# HTTP-WebSocket Client Template v0.0.2
 
 This is a template project which combines [HTTP](https://github.com/th2-net/th2-conn-http-client)
 and [WebSocket](https://github.com/th2-net/th2-conn-ws-client) clients together.
@@ -101,7 +101,7 @@ metadata:
   name: ws-client
 spec:
   image-name: ghcr.io/th2-net/th2-conn-http-ws-client
-  image-version: 0.0.1
+  image-version: 0.0.2
   custom-config:
     autoStart: true
     autoStopAfter: 0
