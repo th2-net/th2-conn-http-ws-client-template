@@ -126,11 +126,13 @@ spec:
       attributes:
         - subscribe
         - http_send
+        - group
     - name: to_send_ws
       connection-type: mq
       attributes:
         - subscribe
         - ws_send
+        - raw
     - name: http_requests
       connection-type: mq
       attributes:
