@@ -1,6 +1,14 @@
+import com.github.jk1.license.filter.LicenseBundleNormalizer
+import com.github.jk1.license.render.JsonReportRenderer
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     id 'com.palantir.docker' version '0.25.0' apply false
     id 'org.jetbrains.kotlin.jvm' version "${kotlin_version}"
+    id "org.owasp.dependencycheck" version "8.3.1"
+    id "com.gorylenko.gradle-git-properties" version "2.4.1"
+    id 'com.github.jk1.dependency-license-report' version '2.5'
+    id "de.undercouch.download" version "5.4.0"
 }
 
 apply plugin: 'kotlin'
@@ -62,11 +70,11 @@ dependencies {
 
     implementation 'org.slf4j:slf4j-api'
 
-    implementation group: 'io.github.microutils', name: 'kotlin-logging', version: '3.0.5'
-    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.15.2'
-    implementation group: 'com.athaydes.rawhttp', name:'rawhttp-core', version: '2.6.0'
+    implementation 'io.github.microutils:kotlin-logging:3.0.5'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
+    implementation 'com.athaydes.rawhttp:rawhttp-core:2.6.0'
 
-    testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
+    testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
 }
 
 application {
@@ -87,14 +95,37 @@ docker {
     copySpec.from(tarTree("$buildDir/distributions/${applicationName}.tar"))
 }
 
-compileKotlin {
-    kotlinOptions {
-        jvmTarget = "11"
+tasks.withType(KotlinCompile).configureEach {
+    kotlinOptions.jvmTarget = "11"
+}
+
+dependencyCheck {
+    formats = ['SARIF', 'JSON', 'HTML']
+    failBuildOnCVSS = 5
+    analyzers {
+        assemblyEnabled = false
+        nugetconfEnabled = false
+        nodeEnabled = false
     }
 }
 
-compileTestKotlin {
-    kotlinOptions {
-        jvmTarget = "11"
+licenseReport {
+    def licenseNormalizerBundlePath = "$buildDir/license-normalizer-bundle.json"
+
+    if (!file(licenseNormalizerBundlePath).exists()) {
+        download.run {
+            src 'https://raw.githubusercontent.com/th2-net/.github/main/license-compliance/gradle-license-report/license-normalizer-bundle.json'
+            dest "$buildDir/license-normalizer-bundle.json"
+            overwrite false
+        }
     }
+
+    filters = [
+            new LicenseBundleNormalizer(licenseNormalizerBundlePath, false)
+    ]
+    renderers = [
+            new JsonReportRenderer('licenses.json', false),
+    ]
+    excludeOwnGroup = false
+    allowedLicensesFile = new URL("https://raw.githubusercontent.com/th2-net/.github/main/license-compliance/gradle-license-report/allowed-licenses.json")
 }
