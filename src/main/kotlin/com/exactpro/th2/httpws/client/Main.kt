@@ -408,7 +408,6 @@ data class WebSocketSettings(
         TEXT {
             override fun send(client: IClient, data: ByteArray) = client.sendText(data.toString(UTF_8))
         },
-        @Suppress("unused")
         BINARY {
             override fun send(client: IClient, data: ByteArray) = client.sendBinary(data)
         };
