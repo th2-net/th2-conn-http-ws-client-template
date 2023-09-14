@@ -1,4 +1,4 @@
-# HTTP-WebSocket Client Template v0.0.2
+# HTTP-WebSocket Client Template v0.2.0
 
 This is a template project which combines [HTTP](https://github.com/th2-net/th2-conn-http-client)
 and [WebSocket](https://github.com/th2-net/th2-conn-ws-client) clients together.
@@ -15,6 +15,10 @@ The main configuration is done by changing following properties:
 
 + **autoStart** - start service automatically (`true` by default and if `startControl` is `false`)
 + **autoStopAfter** - stop after N seconds if the service was started automatically prior to send (`0` by default which means disabled)
++ **sessionGroup** - session group for incoming/outgoing th2 messages (equal to session alias by default)
++ **maxBatchSize** - max size of outgoing message batch (`100` by default)
++ **maxFlushTime** - max message batch flush time (`1000` by default)
++ **useTransport** - use th2 transport or protobuf protocol to publish incoming/outgoing messages (`true` by default)
 + **grpcStartControl** - enables start/stop control via [gRPC service](https://github.com/th2-net/th2-grpc-conn/blob/37c8ee21135225a6140bd459ec617c6fa5c04b3b/src/main/proto/th2_grpc_conn/conn.proto#L22) (`false` by default)
 + **http** - HTTP connection configuration block
 + **ws** - WebSocket connection configuration block
@@ -44,6 +48,10 @@ Service will also automatically connect prior to message send if it wasn't conne
 autoStart: true
 autoStopAfter: 0
 grpcStartControl: false
+sessionGroup: session-group
+maxBatchSize: 100
+maxFlushTime: 1000
+useTransport: true
 ws:
   uri: wss://echo.websocket.org
   frameType: TEXT
@@ -61,12 +69,12 @@ http:
 
 ### MQ pins
 
-* input queue with `subscribe` and `http_send` attributes for outgoing HTTP requires
-* input queue with `subscribe` and `ws_send` attributes for outgoing WebSocket messages
-* output queue with `publish`, `first`, `http_request` for sent HTTP requests
-* output queue with `publish`, `second`, `http_response` for sent HTTP responses
-* output queue with `publish`, `first`, `ws_incoming` for received WebSocket messages
-* output queue with `publish`, `second`, `ws_outgoing` for sent WebSocket messages
+* input pin with `subscribe`, `http_send`, `group` attributes for consuming HTTP requires via protobuf protocol
+* input pin with `subscribe`, `http_send`, `transport-group` attributes for consuming HTTP requires via th2 transport protocol
+* input pin with `subscribe`, `ws_send`, `group` attributes for consuming WebSocket messages via protobuf protocol
+* input pin with `subscribe`, `ws_send`, `transport-group` attributes for consuming WebSocket messages via th2 transport protocol
+* output pin with `publish`, `raw` for sent HTTP and WebSocket requests / responses
+* output pin with `publish`, `transport-group` for sent HTTP and WebSocket requests / responses
 
 ## Inputs/outputs
 
@@ -100,12 +108,16 @@ kind: Th2Box
 metadata:
   name: ws-client
 spec:
-  image-name: ghcr.io/th2-net/th2-conn-http-ws-client
-  image-version: 0.0.2
-  custom-config:
+  imageName: ghcr.io/th2-net/th2-conn-http-ws-client
+  imageVersion: 0.0.2
+  customConfig:
     autoStart: true
     autoStopAfter: 0
     grpcStartControl: false
+    sessionGroup: session-group
+    maxBatchSize: 100
+    maxFlushTime: 1000
+    useTransport: true
     ws:
       uri: wss://echo.websocket.org
       frameType: TEXT
@@ -121,44 +133,35 @@ spec:
       defaultHeaders: [ ]
   type: th2-conn
   pins:
-    - name: to_send_http
-      connection-type: mq
-      attributes:
-        - subscribe
-        - http_send
-        - group
-    - name: to_send_ws
-      connection-type: mq
-      attributes:
-        - subscribe
-        - ws_send
-        - raw
-    - name: http_requests
-      connection-type: mq
-      attributes:
-        - publish
-        - second
-        - raw
-        - http_request
-    - name: http_responses
-      connection-type: mq
-      attributes:
-        - publish
-        - first
-        - raw
-        - http_response
-    - name: incoming_ws_messages
-      connection-type: mq
-      attributes:
-        - publish
-        - first
-        - raw
-        - ws_incoming
-    - name: outgoing_ws_messages
-      connection-type: mq
-      attributes:
-        - publish
-        - second
-        - raw
-        - ws_outgoing
+    mq:
+      subscribers:
+        - name: to_send_http_proto
+          attributes:
+            - subscribe
+            - http_send
+            - group
+        - name: to_send_ws_proto
+          attributes:
+            - subscribe
+            - ws_send
+            - group
+        - name: to_send_http_transport
+          attributes:
+            - subscribe
+            - http_send
+            - transport-group
+        - name: to_send_ws_transport
+          attributes:
+            - subscribe
+            - ws_send
+            - transport-group
+      publishers:
+        - name: outgoing_proto
+          attributes:
+            - publish
+            - raw
+        - name: outgoing_transport
+          attributes:
+            - publish
+            - transport-group
 ```

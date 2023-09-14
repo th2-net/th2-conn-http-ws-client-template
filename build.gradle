@@ -1,14 +1,16 @@
+import com.github.jk1.license.filter.LicenseBundleNormalizer
+import com.github.jk1.license.render.JsonReportRenderer
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
-    id 'com.palantir.docker' version '0.25.0' apply false
+    id 'application'
+    id 'com.palantir.docker' version '0.25.0'
     id 'org.jetbrains.kotlin.jvm' version "${kotlin_version}"
-}
-
-apply plugin: 'kotlin'
-apply plugin: 'application'
-apply plugin: 'com.palantir.docker'
-
-ext {
-    sharedDir = file("${project.rootDir}/shared")
+    id "org.owasp.dependencycheck" version "8.3.1"
+    id "com.gorylenko.gradle-git-properties" version "2.4.1"
+    id 'com.github.jk1.dependency-license-report' version '2.5'
+    id "de.undercouch.download" version "5.4.0"
 }
 
 group = 'com.exactpro.th2'
@@ -18,11 +20,6 @@ sourceCompatibility = 11
 targetCompatibility = 11
 
 repositories {
-    maven {
-        name 'MavenLocal'
-        url sharedDir
-    }
-
     mavenCentral()
 
     maven {
@@ -35,7 +32,7 @@ repositories {
 
     mavenLocal()
 
-    configurations.all {
+    configurations.configureEach {
         resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
         resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
     }
@@ -60,28 +57,22 @@ java {
     withSourcesJar()
 }
 
-clean {
-    delete sharedDir
-}
-
 dependencies {
-    api platform('com.exactpro.th2:bom:3.0.0')
+    api platform('com.exactpro.th2:bom:4.5.0')
 
-    implementation 'com.exactpro.th2:common:3.22.0'
-    implementation 'com.exactpro.th2:grpc-conn:0.0.1'
-    implementation 'com.exactpro.th2:conn-ws-client:0.2.3'
-    implementation 'com.exactpro.th2:conn-http-client:0.1.1'
+    implementation 'com.exactpro.th2:common:5.4.1-dev'
+    implementation 'com.exactpro.th2:common-utils:2.2.0-dev'
+    implementation 'com.exactpro.th2:grpc-conn:0.1.0-TS-1663-+'
+    implementation 'com.exactpro.th2:conn-ws-client:0.4.0-TS-1633-+'
+    implementation 'com.exactpro.th2:conn-http-client:2.1.0-dev'
 
-    implementation 'org.slf4j:slf4j-log4j12:1.7.32'
-    implementation 'org.slf4j:slf4j-api:1.7.32'
+    implementation 'org.slf4j:slf4j-api'
 
-    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8'
-    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect'
-    implementation group: 'io.github.microutils', name: 'kotlin-logging', version: '1.7.9'
-    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.11.2'
-    implementation group: 'com.athaydes.rawhttp', name:'rawhttp-core', version: '2.4.1'
+    implementation 'io.github.microutils:kotlin-logging:3.0.5'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
+    implementation 'com.athaydes.rawhttp:rawhttp-core:2.6.0'
 
-    testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
 }
 
 application {
@@ -102,16 +93,39 @@ docker {
     copySpec.from(tarTree("$buildDir/distributions/${applicationName}.tar"))
 }
 
-compileKotlin {
-    kotlinOptions {
-        jvmTarget = "11"
-        freeCompilerArgs += "-XXLanguage:+UnitConversion"
+tasks.withType(KotlinCompile).configureEach {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 
-compileTestKotlin {
-    kotlinOptions {
-        jvmTarget = "11"
-        freeCompilerArgs += "-XXLanguage:+UnitConversion"
+dependencyCheck {
+    formats = ['SARIF', 'JSON', 'HTML']
+    failBuildOnCVSS = 5
+    analyzers {
+        assemblyEnabled = false
+        nugetconfEnabled = false
+        nodeEnabled = false
     }
+}
+
+licenseReport {
+    def licenseNormalizerBundlePath = "$buildDir/license-normalizer-bundle.json"
+
+    if (!file(licenseNormalizerBundlePath).exists()) {
+        download.run {
+            src 'https://raw.githubusercontent.com/th2-net/.github/main/license-compliance/gradle-license-report/license-normalizer-bundle.json'
+            dest "$buildDir/license-normalizer-bundle.json"
+            overwrite false
+        }
+    }
+
+    filters = [
+            new LicenseBundleNormalizer(licenseNormalizerBundlePath, false)
+    ]
+    renderers = [
+            new JsonReportRenderer('licenses.json', false),
+    ]
+    excludeOwnGroup = false
+    allowedLicensesFile = new URL("https://raw.githubusercontent.com/th2-net/.github/main/license-compliance/gradle-license-report/allowed-licenses.json")
 }
